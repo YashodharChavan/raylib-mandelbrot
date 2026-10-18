@@ -33,4 +33,5 @@ module.exports = {
     getYOnCircle,
     toRadians,
     toDegrees,
+    square
 };

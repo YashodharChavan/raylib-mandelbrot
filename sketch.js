@@ -1,4 +1,5 @@
 const r = require("raylib");
+const g = require("./geometry");
 
 function setup() {
     const world = {
@@ -10,7 +11,7 @@ function setup() {
             y: 0,
         },
         scale: 200,
-        iteration: 75,
+        iteration: 100,
     };
 
     world.origin.x = (2 * world.windowWidth) / 3;
@@ -18,26 +19,20 @@ function setup() {
 
     r.SetTraceLogLevel(r.LOG_NONE);
     r.InitWindow(world.windowWidth, world.windowHeight, "MANDELBROT");
-    r.SetTargetFPS(30);
+    r.SetTargetFPS(2);
 
     return world;
 }
 
-function square(x) {
-    return x * x;
-}
-
 function isStable(Z) {
-    return Math.sqrt(square(Z.x) + square(Z.y)) < 2;
+    return Math.sqrt(g.square(Z.x) + g.square(Z.y)) < 2;
 }
 
-function drawMandelbrot(world, Z, n, C) {
-    // Originally I was thinking I need to draw path of Z, but actually we want to test if C is a point in mandelbrot set.
+function drawMandelbrotPoint(world, Z, n, C) {
     while (n > 0) {
-        // if mandelbrot is not stable, then return early, the test has failed
         if (!isStable(Z)) return;
-        const aSq = square(Z.x);
-        const bSq = square(Z.y);
+        const aSq = g.square(Z.x);
+        const bSq = g.square(Z.y);
         const ab = 2 * Z.x * Z.y;
 
         Z = {
@@ -48,10 +43,10 @@ function drawMandelbrot(world, Z, n, C) {
         n--;
     }
 
-    // Draw the C pixel only if the iterations have been exhausted. This means the test has passed!!
-    r.DrawPixel(
+    r.DrawCircle(
         world.origin.x + world.scale * C.x,
         world.origin.y + world.scale * C.y,
+        1,
         r.WHITE,
     );
 }
@@ -60,21 +55,43 @@ function isRunning() {
     return !r.WindowShouldClose();
 }
 
-function draw(world) {
-    r.BeginDrawing();
-    r.ClearBackground(r.BLACK);
+function detectZoom(world) {
+    const wheel = r.GetMouseWheelMove();
+    const mouse = { x: r.GetMouseX(), y: r.GetMouseY() };
 
-    for (let i = -5; i < 5; i += 0.005) {
-        for (let j = -5; j < 5; j += 0.005) {
+    const oldScale = world.scale;
+    const newScale = Math.max(1, oldScale * Math.pow(1.1, wheel));
+
+    const scaleRatio = newScale / oldScale;
+
+    const newOrigin = r.Vector2Subtract(
+        mouse,
+        r.Vector2Scale(r.Vector2Subtract(mouse, world.origin), scaleRatio),
+    );
+
+    world.origin = newOrigin;
+    world.scale = newScale;
+}
+
+function drawMandelbrot(world) {
+    for (let i = -1.5; i < 1.5; i += 0.005) {
+        for (let j = -2; j < 0.5; j += 0.005) {
             const C = {
                 x: j,
                 y: i,
             };
 
-            drawMandelbrot(world, world.initialZ, world.iteration, C);
+            drawMandelbrotPoint(world, world.initialZ, world.iteration, C);
         }
     }
+}
 
+function draw(world) {
+    r.BeginDrawing();
+    r.ClearBackground(r.BLACK);
+
+    drawMandelbrot(world);
+    detectZoom(world);
     r.EndDrawing();
 }
 
